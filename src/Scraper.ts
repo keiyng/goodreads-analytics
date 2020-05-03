@@ -80,9 +80,36 @@ export class GoodreadsScraper {
     return books;
   }
 
+  async handlePopup(popupCloseBtnCssSelector: string) {
+    let closeBtn: WebElement | null = null;
+    try {
+      closeBtn = await this.driver.findElement(
+        By.css(popupCloseBtnCssSelector)
+      );
+    } catch (e) {
+      if (e.name === 'NoSuchElementError') {
+        console.log('cannot locate popup; default to null');
+      } else {
+        console.log(e);
+      }
+    }
+
+    if (closeBtn) {
+      await closeBtn.click();
+    }
+    return;
+  }
+
   async getBookDetails(book: Book) {
     try {
-      await this.driver.findElement(By.id('rating_details')).click();
+      const ratingDetails: WebElement = await this.driver.findElement(
+        By.id('rating_details')
+      );
+      this.driver.sleep(2000);
+
+      await this.handlePopup('.modal__content > .modal__close > button');
+      await ratingDetails.click();
+
       const ratingsDistributionRows: WebElement[] = await this.driver.findElements(
         By.css('#moreBookData #rating_distribution tr')
       );
