@@ -1,22 +1,53 @@
+import fs from 'fs';
+import path from 'path';
 import { WebElement, Builder, By } from 'selenium-webdriver';
 import { Book } from './Book';
+import { Mailer } from './Mailer';
 
 export class GoodreadsScraper {
   driver: any;
 
   constructor(public browser: string) {}
 
+  async handlePopup(popupCloseBtnCssSelector: string) {
+    let closeBtn: WebElement | null = null;
+    try {
+      closeBtn = await this.driver.findElement(
+        By.css(popupCloseBtnCssSelector)
+      );
+    } catch (err) {
+      if (err.name !== 'NoSuchElementError') {
+        console.log(err);
+      }
+    }
+
+    if (closeBtn) {
+      await closeBtn.click();
+    }
+    return;
+  }
+
+  async takeErrorScreenshot() {
+    const screenshot: Promise<string> = await this.driver.takeScreenshot();
+    const filename: string = `error-${new Date()}.png`;
+    const filePath = path.join(__dirname, '..', 'error_screenshots', filename);
+    fs.writeFileSync(filePath, screenshot, 'base64');
+
+    return { filePath, filename };
+  }
+
   async scrapeShouldReadAtLeastOnceList(url: string) {
     // get list page
     await this.getPage(url);
     const books = await this.getVotedBookList(50);
+
     this.driver.close();
     // get book details page
     for (let book of books) {
       await this.getPage(book['url']);
       const bookWithDetails = await this.getBookDetails(book);
       console.log(bookWithDetails);
-      // save to db
+      // TODO: save to db
       this.driver.close();
       break;
     }
@@ -31,8 +62,15 @@ export class GoodreadsScraper {
     try {
       await this.buildDriver();
       await this.driver.get(url);
-    } catch (e) {
-      console.log(e);
+    } catch (err) {
+      console.log(err);
+      const { filePath, filename } = await this.takeErrorScreenshot();
+      new Mailer().sendErrorEmail(
+        filePath,
+        filename,
+        `GoodreadsScraper Error - ${new Date()}`,
+        `<img src="cid:gr-err-ss"/><div>Error Message: ${err} </div>`
+      );
       this.driver.quit();
     }
   }
@@ -46,22 +84,23 @@ export class GoodreadsScraper {
       );
 
       const scores: WebElement[] = await this.driver.findElements(
-        By.css('#all_votes .smallText a:first-of-type')
+        By.css('#all_votes .smllText a:first-of-type')
       );
 
       const votes: WebElement[] = await this.driver.findElements(
-        By.css('#all_votes .smallText a:nth-of-type(2')
+        By.css('#all_votes .smallText a:nth-of-type(2)')
       );
 
       for (let i = 0; i < count; i++) {
         const title: string = await bookInfo[i].getText();
         const url: string = await bookInfo[i].getAttribute('href');
+
         const idStartIndex: number = url.indexOf('show/') + 5;
         const idEndIndex: number =
           url.slice(idStartIndex).search(/\D/) + idStartIndex;
+        const grId: number = Number(url.slice(idStartIndex, idEndIndex));
 
         const rank: number = i + 1;
-        const grId: number = Number(url.slice(idStartIndex, idEndIndex));
         let score: string = await scores[i].getText();
         score = score.replace(/[\D]/g, '');
         let vote: string = await votes[i].getText();
@@ -73,31 +112,18 @@ export class GoodreadsScraper {
         book.setVotes(parseInt(vote));
         books.push(book);
       }
-    } catch (e) {
-      console.log(e);
+    } catch (err) {
+      console.log(err);
+      const { filePath, filename } = await this.takeErrorScreenshot();
+      new Mailer().sendErrorEmail(
+        filePath,
+        filename,
+        `GoodreadsScraper Error - ${new Date()}`,
+        `<img src="cid:gr-err-ss"/><div>Error Message: ${err} </div>`
+      );
     }
 
     return books;
-  }
-
-  async handlePopup(popupCloseBtnCssSelector: string) {
-    let closeBtn: WebElement | null = null;
-    try {
-      closeBtn = await this.driver.findElement(
-        By.css(popupCloseBtnCssSelector)
-      );
-    } catch (e) {
-      if (e.name === 'NoSuchElementError') {
-        console.log('cannot locate popup; default to null');
-      } else {
-        console.log(e);
-      }
-    }
-
-    if (closeBtn) {
-      await closeBtn.click();
-    }
-    return;
   }
 
   async getBookDetails(book: Book) {
@@ -146,9 +172,15 @@ export class GoodreadsScraper {
       book.setToReadCount(parseInt(toReadCount));
 
       return book;
-    } catch (e) {
-      console.log(e);
+    } catch (err) {
+      console.log(err);
+      const { filePath, filename } = await this.takeErrorScreenshot();
+      new Mailer().sendErrorEmail(
+        filePath,
+        filename,
+        `GoodreadsScraper Error - ${new Date()}`,
+        `<img src="cid:gr-err-ss"/><div>Error Message: ${err} </div>`
+      );
     }
   }
 }
-// https://www.goodreads.com/book/review_counts.json?key=rfZeIXRcGIywEb6rLWYrA&isbns=1408839970

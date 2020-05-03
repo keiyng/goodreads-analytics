@@ -1,16 +1,16 @@
 export class Book {
   constructor(
-    public title: string,
-    public url: string,
-    public grId: number,
-    public rank?: number,
-    public scores?: number,
-    public votes?: number,
-    public allRatingsCount?: number,
-    public ratingsDistribution?: { [key: string]: number },
-    public averageRating?: number,
-    public allReviewsCount?: number,
-    public toReadCount?: number
+    protected title: string,
+    protected url: string,
+    protected grId: number,
+    protected rank?: number,
+    protected scores?: number,
+    protected votes?: number,
+    protected allRatingsCount?: number,
+    protected ratingsDistribution?: { [key: string]: number },
+    protected averageRating?: number,
+    protected allReviewsCount?: number,
+    protected toReadCount?: number
   ) {
     this.setBookInfo(title, url, grId);
   }
