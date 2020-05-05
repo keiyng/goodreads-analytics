@@ -3,13 +3,14 @@ import path from 'path';
 import { WebElement, Builder, By } from 'selenium-webdriver';
 import { Book } from './Book';
 import { Mailer } from './Mailer';
+import { PgClient } from './PgClient';
 
 export class GoodreadsScraper {
   driver: any;
 
   constructor(public browser: string) {}
 
-  async handlePopup(popupCloseBtnCssSelector: string) {
+  async handlePopup(popupCloseBtnCssSelector: string): Promise<void> {
     let closeBtn: WebElement | null = null;
     try {
       closeBtn = await this.driver.findElement(
@@ -27,7 +28,7 @@ export class GoodreadsScraper {
     return;
   }
 
-  async takeErrorScreenshot() {
+  async takeErrorScreenshot(): Promise<{ [key: string]: string }> {
     const screenshot: Promise<string> = await this.driver.takeScreenshot();
     const filename: string = `error-${new Date()}.png`;
     const filePath = path.join(__dirname, '..', 'error_screenshots', filename);
@@ -36,19 +37,26 @@ export class GoodreadsScraper {
     return { filePath, filename };
   }
 
+  saveBookToDb(book: Book): void {
+    const db = new PgClient();
+    db.connect();
+    db.close();
+    // db.query(`INSERT INTO test (name, age) values ('Kei', 29)`);
+  }
+
   async scrapeShouldReadAtLeastOnceList(url: string) {
     // get list page
     await this.getPage(url);
     const books = await this.getVotedBookList(50);
-
     this.driver.close();
+
     // get book details page
     for (let book of books) {
       await this.getPage(book['url']);
       const bookWithDetails = await this.getBookDetails(book);
       console.log(bookWithDetails);
-      // TODO: save to db
       this.driver.close();
+      this.saveBookToDb(bookWithDetails);
       break;
     }
     this.driver.quit();
@@ -58,7 +66,7 @@ export class GoodreadsScraper {
     this.driver = await new Builder().forBrowser(this.browser).build();
   }
 
-  async getPage(url: string) {
+  async getPage(url: string): Promise<void> {
     try {
       await this.buildDriver();
       await this.driver.get(url);
@@ -71,11 +79,21 @@ export class GoodreadsScraper {
         `GoodreadsScraper Error - ${new Date()}`,
         `<img src="cid:gr-err-ss"/><div>Error Message: ${err} </div>`
       );
-      this.driver.quit();
     }
   }
 
-  async getVotedBookList(count: number) {
+  private getIdFromUrl(
+    url: string,
+    key: string,
+    searchExpression: RegExp
+  ): number {
+    const idStartIndex: number = url.indexOf(key) + key.length;
+    const idEndIndex: number =
+      url.slice(idStartIndex).search(searchExpression) + idStartIndex;
+    return Number(url.slice(idStartIndex, idEndIndex));
+  }
+
+  async getVotedBookList(count: number): Promise<Book[]> {
     const books: Book[] = [];
 
     try {
@@ -84,22 +102,20 @@ export class GoodreadsScraper {
       );
 
       const scores: WebElement[] = await this.driver.findElements(
-        By.css('#all_votes .smllText a:first-of-type')
+        By.css('#all_votes .smallText a:first-of-type')
       );
 
       const votes: WebElement[] = await this.driver.findElements(
         By.css('#all_votes .smallText a:nth-of-type(2)')
       );
 
+      const currentUrl: string = await this.driver.getCurrentUrl();
+      const listId: number = this.getIdFromUrl(currentUrl, 'show/', /\D/);
+
       for (let i = 0; i < count; i++) {
         const title: string = await bookInfo[i].getText();
         const url: string = await bookInfo[i].getAttribute('href');
-
-        const idStartIndex: number = url.indexOf('show/') + 5;
-        const idEndIndex: number =
-          url.slice(idStartIndex).search(/\D/) + idStartIndex;
-        const grId: number = Number(url.slice(idStartIndex, idEndIndex));
-
+        const grId: number = this.getIdFromUrl(url, 'show/', /\D/);
         const rank: number = i + 1;
         let score: string = await scores[i].getText();
         score = score.replace(/[\D]/g, '');
@@ -110,6 +126,7 @@ export class GoodreadsScraper {
         book.setRank(rank);
         book.setScores(parseInt(score));
         book.setVotes(parseInt(vote));
+        book.setList(listId);
         books.push(book);
       }
     } catch (err) {
@@ -126,7 +143,8 @@ export class GoodreadsScraper {
     return books;
   }
 
-  async getBookDetails(book: Book) {
+  async getBookDetails(book: Book): Promise<Book> {
+    let currentBook = book;
     try {
       const ratingDetails: WebElement = await this.driver.findElement(
         By.id('rating_details')
@@ -160,18 +178,16 @@ export class GoodreadsScraper {
         }
       }
 
-      book.setRatingsDistribution(ratingsDistribution);
+      currentBook.setRatingsDistribution(ratingsDistribution);
       const averageRating = await allEditionsDetails[0].getText();
       const allRatingsCount = await allEditionsDetails[1].getText();
       const allReviewsCount = await allEditionsDetails[2].getText();
       const toReadCount = await allEditionsDetails[4].getText();
 
-      book.setAverageRating(parseFloat(averageRating));
-      book.setAllRatingsCount(parseInt(allRatingsCount));
-      book.setAllReviewsCount(parseInt(allReviewsCount));
-      book.setToReadCount(parseInt(toReadCount));
-
-      return book;
+      currentBook.setAverageRating(parseFloat(averageRating));
+      currentBook.setAllRatingsCount(parseInt(allRatingsCount));
+      currentBook.setAllReviewsCount(parseInt(allReviewsCount));
+      currentBook.setToReadCount(parseInt(toReadCount));
     } catch (err) {
       console.log(err);
       const { filePath, filename } = await this.takeErrorScreenshot();
@@ -182,5 +198,6 @@ export class GoodreadsScraper {
         `<img src="cid:gr-err-ss"/><div>Error Message: ${err} </div>`
       );
     }
+    return book;
   }
 }

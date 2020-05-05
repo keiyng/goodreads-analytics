@@ -10,7 +10,8 @@ export class Book {
     protected ratingsDistribution?: { [key: string]: number },
     protected averageRating?: number,
     protected allReviewsCount?: number,
-    protected toReadCount?: number
+    protected toReadCount?: number,
+    protected listId?: number
   ) {
     this.setBookInfo(title, url, grId);
   }
@@ -54,5 +55,9 @@ export class Book {
 
   setAllReviewsCount(reviews: number): void {
     this.allReviewsCount = reviews;
+  }
+
+  setList(listId: number): void {
+    this.listId = listId;
   }
 }

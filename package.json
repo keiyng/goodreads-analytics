@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "ts-node-dev src/index.ts",
-    "dev": "nodemon --exec ts-node src/index.ts",
+    "dev": "NODE_TLS_REJECT_UNAUTHORIZED='0' nodemon --exec ts-node src/index.ts",
     "build": "tsc"
   },
   "keywords": [],
@@ -23,6 +23,7 @@
     "@types/express": "^4.17.6",
     "@types/node": "^13.13.4",
     "@types/nodemailer": "^6.4.0",
+    "@types/pg": "^7.14.3",
     "@types/xml2js": "^0.4.5",
     "nodemon": "^2.0.3",
     "ts-node": "^8.9.1",
