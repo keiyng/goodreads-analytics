@@ -37,11 +37,46 @@ export class GoodreadsScraper {
     return { filePath, filename };
   }
 
-  saveBookToDb(book: Book): void {
+  async saveBookToDb(book: Book) {
     const db = new PgClient();
     db.connect();
+
+    const query = `select * from book where gr_id = $1`;
+    const values = [book['grId']];
+    const exists: { [key: string]: any }[] = await db.query(query, values);
+
+    if (exists.length === 0) {
+      const insertBook =
+        'insert into book (title, gr_id, url, author_ids, list_ids) values ($1, $2, $3, $4, $5)';
+      const bookValues = [
+        book['title'],
+        book['grId'],
+        book['url'],
+        [book['authorId']],
+        [book['listId']],
+      ];
+
+      await db.query(insertBook, bookValues);
+    }
+
+    const insertDetails =
+      'insert into list_stats (gr_id, list_id, rank, scores, votes, all_ratings_count, ratings_distribution, average_rating, all_reviews_count, to_read_count) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)';
+    const detailsValues = [
+      book['grId'],
+      book['listId'],
+      book['rank'],
+      book['scores'],
+      book['votes'],
+      book['allRatingsCount'],
+      book['ratingsDistribution'],
+      book['averageRating'],
+      book['allReviewsCount'],
+      book['toReadCount'],
+    ];
+
+    await db.query(insertDetails, detailsValues);
+
     db.close();
-    // db.query(`INSERT INTO test (name, age) values ('Kei', 29)`);
   }
 
   async scrapeShouldReadAtLeastOnceList(url: string) {
@@ -51,13 +86,14 @@ export class GoodreadsScraper {
     this.driver.close();
 
     // get book details page
+    let counter = 0;
     for (let book of books) {
+      counter++;
       await this.getPage(book['url']);
       const bookWithDetails = await this.getBookDetails(book);
       console.log(bookWithDetails);
       this.driver.close();
       this.saveBookToDb(bookWithDetails);
-      break;
     }
     this.driver.quit();
   }
@@ -86,11 +122,11 @@ export class GoodreadsScraper {
     url: string,
     key: string,
     searchExpression: RegExp
-  ): number {
+  ): string {
     const idStartIndex: number = url.indexOf(key) + key.length;
     const idEndIndex: number =
       url.slice(idStartIndex).search(searchExpression) + idStartIndex;
-    return Number(url.slice(idStartIndex, idEndIndex));
+    return url.slice(idStartIndex, idEndIndex);
   }
 
   async getVotedBookList(count: number): Promise<Book[]> {
@@ -99,6 +135,10 @@ export class GoodreadsScraper {
     try {
       const bookInfo: WebElement[] = await this.driver.findElements(
         By.css('#all_votes tr .bookTitle')
+      );
+
+      const author: WebElement[] = await this.driver.findElements(
+        By.css('a[class="authorName"]')
       );
 
       const scores: WebElement[] = await this.driver.findElements(
@@ -110,19 +150,21 @@ export class GoodreadsScraper {
       );
 
       const currentUrl: string = await this.driver.getCurrentUrl();
-      const listId: number = this.getIdFromUrl(currentUrl, 'show/', /\D/);
+      const listId: string = this.getIdFromUrl(currentUrl, 'show/', /\D/);
 
       for (let i = 0; i < count; i++) {
         const title: string = await bookInfo[i].getText();
         const url: string = await bookInfo[i].getAttribute('href');
-        const grId: number = this.getIdFromUrl(url, 'show/', /\D/);
+        const authorUrl: string = await author[i].getAttribute('href');
+        const authorId: string = this.getIdFromUrl(authorUrl, 'show/', /\D/);
+        const grId: string = this.getIdFromUrl(url, 'show/', /\D/);
         const rank: number = i + 1;
         let score: string = await scores[i].getText();
         score = score.replace(/[\D]/g, '');
         let vote: string = await votes[i].getText();
         vote = vote.replace(/[\D]/g, '');
 
-        const book: Book = new Book(title, url, grId);
+        const book: Book = new Book(title, url, grId, authorId);
         book.setRank(rank);
         book.setScores(parseInt(score));
         book.setVotes(parseInt(vote));

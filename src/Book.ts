@@ -1,22 +1,23 @@
 export class Book {
   constructor(
-    protected title: string,
-    protected url: string,
-    protected grId: number,
-    protected rank?: number,
-    protected scores?: number,
-    protected votes?: number,
-    protected allRatingsCount?: number,
-    protected ratingsDistribution?: { [key: string]: number },
-    protected averageRating?: number,
-    protected allReviewsCount?: number,
-    protected toReadCount?: number,
-    protected listId?: number
+    public title: string,
+    public url: string,
+    public grId: string,
+    public authorId: string,
+    public rank?: number,
+    public scores?: number,
+    public votes?: number,
+    public allRatingsCount?: number,
+    public ratingsDistribution?: { [key: string]: number },
+    public averageRating?: number,
+    public allReviewsCount?: number,
+    public toReadCount?: number,
+    public listId?: string
   ) {
     this.setBookInfo(title, url, grId);
   }
 
-  setBookInfo(title: string, url: string, grId: number): void {
+  setBookInfo(title: string, url: string, grId: string): void {
     this.title = title;
     this.url = url;
     this.grId = grId;
@@ -57,7 +58,7 @@ export class Book {
     this.allReviewsCount = reviews;
   }
 
-  setList(listId: number): void {
+  setList(listId: string): void {
     this.listId = listId;
   }
 }
