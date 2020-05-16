@@ -23,10 +23,9 @@ export class GoodreadsScraper {
       for (let item of list) {
         await this.getPage(item.book['url']);
         const listStats = await this.getListStats(item);
-        console.log(listStats);
         this.driver.close();
-        this.saveListStats(listStats);
-        // break;
+        // this.saveListStats(listStats);
+        break;
       }
       this.driver.quit();
     } catch (err) {

@@ -1,4 +1,4 @@
 node_modules
 dist
-config
+dev.ts
 error_screenshots

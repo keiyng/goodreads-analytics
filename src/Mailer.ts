@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { emailSender, emailSenderPw, emailReceiver } from './config/keys';
+import keys from './config/keys';
 
 export class Mailer {
   transporter: nodemailer.Transporter;
@@ -8,8 +8,8 @@ export class Mailer {
     this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: emailSender,
-        pass: emailSenderPw,
+        user: keys.emailSender,
+        pass: keys.emailSenderPw,
       },
     });
   }
@@ -23,8 +23,8 @@ export class Mailer {
     const mailOptions: {
       [key: string]: string | { [key: string]: string }[];
     } = {
-      from: emailSender,
-      to: emailReceiver,
+      from: keys.emailSender,
+      to: keys.emailReceiver,
       subject: subject,
       html: html,
       attachments: [
