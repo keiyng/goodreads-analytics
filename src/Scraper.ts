@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { WebElement, Builder, By } from 'selenium-webdriver';
+import chrome from 'selenium-webdriver/chrome';
+import 'chromedriver';
+
 import { Book } from './Book';
 import { Mailer } from './Mailer';
 import { PgClient } from './PgClient';
@@ -16,6 +19,7 @@ export class GoodreadsScraper {
       // get list page
       await this.getPage(url);
       const list = await this.getList(50);
+      // console.log(list);
       this.saveList(list);
       this.driver.close();
 
@@ -24,8 +28,8 @@ export class GoodreadsScraper {
         await this.getPage(item.book['url']);
         const listStats = await this.getListStats(item);
         this.driver.close();
-        // this.saveListStats(listStats);
-        break;
+        console.log(listStats);
+        this.saveListStats(listStats);
       }
       this.driver.quit();
     } catch (err) {
@@ -41,7 +45,10 @@ export class GoodreadsScraper {
   }
 
   async buildDriver() {
-    this.driver = await new Builder().forBrowser(this.browser).build();
+    this.driver = await new Builder()
+      .forBrowser(this.browser)
+      .setChromeOptions(new chrome.Options().headless())
+      .build();
   }
 
   async getPage(url: string): Promise<void> {
